@@ -1,9 +1,12 @@
 # Ignore Python virtual environment
-.venv/
+venv/
 .git/
 
 # Ignore CSV files
 *.csv
+*.txt
 
 # Ignore Python cache files
 __pycache__/
+
+

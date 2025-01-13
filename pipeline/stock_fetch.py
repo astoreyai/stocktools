@@ -2,13 +2,16 @@ import os
 import pandas as pd
 import yfinance as yf
 from tqdm import tqdm
+import config  # Import only the config file, no other project modules
 
 class StockFetch:
-    def __init__(self, symbols_file, output_dir, log_file):
-        """Initialize StockFetch with paths for symbols file, output directory, and log file."""
-        self.symbols_file = symbols_file
-        self.output_dir = output_dir
-        self.log_file = log_file
+    def __init__(self):
+        """Initialize StockFetch with configurations from the config file."""
+        self.symbols_file = config.SYMBOLS_FILE
+        self.output_dir = config.OUTPUT_DIR
+        self.log_file = config.LOG_FILE
+        self.interval = config.INTERVAL
+        self.period = config.PERIOD
 
     @staticmethod
     def ensure_directory_exists(directory):
@@ -22,7 +25,7 @@ class StockFetch:
             f.write(message + '\n')
 
     def download_stock_data(self):
-        """Download 1-hour stock data from yfinance for symbols in the symbols_file."""
+        """Download stock data from yfinance for symbols in the symbols file."""
         # Ensure the output directory exists
         self.ensure_directory_exists(self.output_dir)
 
@@ -36,8 +39,8 @@ class StockFetch:
             with tqdm(total=len(symbols), desc="Downloading stock data", unit="symbol", leave=False) as pbar:
                 for symbol in symbols:
                     try:
-                        # Suppress the yfinance output using progress=False
-                        data = yf.download(symbol, interval='1h', period='1mo', progress=False)
+                        # Download stock data with the configured interval and period
+                        data = yf.download(symbol, interval=self.interval, period=self.period, progress=False)
                         if not data.empty:
                             output_file = os.path.join(self.output_dir, f"{symbol}.csv")
                             data.to_csv(output_file)
@@ -54,25 +57,14 @@ class StockFetch:
             # Handle failed symbols
             if failed_symbols:
                 self.log_to_file(f"Symbols that failed to download: {', '.join(failed_symbols)}")
-                
+
                 # Remove failed symbols from the CSV file
                 symbols_df = symbols_df[~symbols_df['Symbol'].isin(failed_symbols)]
                 symbols_df.to_csv(self.symbols_file, index=False)
                 self.log_to_file("Failed symbols removed from the symbols CSV file.")
-            
+
             return failed_symbols
 
         except Exception as e:
             self.log_to_file(f"Error: {e}")
             return []
-
-# Example usage:
-# Initialize the class with file paths
-# stock_fetcher = StockFetch(
-#     symbols_file='path_to_symbols.csv',
-#     output_dir='path_to_output_directory',
-#     log_file='path_to_log_file.txt'
-# )
-
-# Fetch stock data
-# failed_symbols = stock_fetcher.download_stock_data()
