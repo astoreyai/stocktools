@@ -2,8 +2,9 @@ import os
 from datetime import datetime
 
 # Telegram Configuration
-TOKEN = "fill in"
-CHAT_ID = 'fill in'
+# Create a .env file in the project root directory and add the following lines:
+#TELEGRAM_BOT_TOKEN=your_token_here
+#TELEGRAM_CHAT_ID=your_chat_id_here
 
 # Define project directories
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

@@ -87,7 +87,7 @@ def main():
     consolidate_signals(strategies_dict)
 
     # Step 4: Send results via Telegram
-    send_notifications(strategies_dict)
+    #send_notifications(strategies_dict)
 
     logging.info("Pipeline complete. Consolidated signals saved.")
 
