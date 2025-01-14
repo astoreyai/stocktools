@@ -7,11 +7,11 @@ import config  # Import only the config file, no other project modules
 class StockFetch:
     def __init__(self):
         """Initialize StockFetch with configurations from the config file."""
-        self.symbols_file = config.SYMBOLS_FILE
-        self.output_dir = config.OUTPUT_DIR
-        self.log_file = config.LOG_FILE
-        self.interval = config.INTERVAL
-        self.period = config.PERIOD
+        self.symbols_file = config.SYMBOLS_FILE  # Path to the symbols file
+        self.output_dir = config.STOCK_PRE_DIR  # Directory for raw stock data
+        self.log_file = config.LOG_FILE  # Log file path
+        self.interval = config.INTERVAL  # Data interval (e.g., '1d')
+        self.period = config.PERIOD  # Data period (e.g., '1mo')
 
     @staticmethod
     def ensure_directory_exists(directory):

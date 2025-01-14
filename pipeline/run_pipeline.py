@@ -1,96 +1,71 @@
-import logging
 from stock_fetch import StockFetch
-from stock_processor import SignalProcessor
-from config import CONSOLIDATED_OUTPUT_FILE, LOG_FILE, TOKEN, CHAT_ID
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    filename=LOG_FILE,
-    filemode='a'  # Append to the log file
-)
-
-def download_stock_data():
-    """Step 1: Download stock data."""
-    try:
-        stock_fetcher = StockFetch()  # Initialize StockFetch using config.py
-        failed_symbols = stock_fetcher.download_stock_data()
-        
-        if failed_symbols:
-            logging.warning(f"Failed to download data for: {', '.join(failed_symbols)}")
-        
-        return failed_symbols
-    except Exception as e:
-        logging.error(f"Error in downloading stock data: {e}")
-        return []
-
-
-def process_signals():
-    """Step 2: Process the stock data for signals."""
-    try:
-        processor = SignalProcessor()
-        strategies_dict = processor.scan_and_filter_signals()
-        
-        if strategies_dict:
-            logging.info(f"Strategies generated: {strategies_dict}")
-        else:
-            logging.info("No valid strategies were generated.")
-        
-        return strategies_dict
-    except Exception as e:
-        logging.error(f"Error in processing signals: {e}")
-        return {}
-
-
-def consolidate_signals(strategies_dict):
-    """Step 3: Consolidate the signals."""
-    if strategies_dict:
-        try:
-            processor = SignalProcessor()
-            processor.save_signals_to_file(strategies_dict)
-            logging.info(f"Consolidated signals saved to {CONSOLIDATED_OUTPUT_FILE}")
-        except Exception as e:
-            logging.error(f"Error in consolidating signals: {e}")
-    else:
-        logging.info("No valid strategies generated. Skipping consolidation.")
-
-
-def send_notifications(strategies_dict):
-    """Step 4: Send results via Telegram."""
-    if TOKEN and CHAT_ID:
-        try:
-            from stock_notifier import TelegramNotifier  # Import only if needed
-            notifier = TelegramNotifier(token=TOKEN, chat_id=CHAT_ID)
-            
-            if strategies_dict:
-                formatted_message = notifier.format_signals(strategies_dict)
-                notifier.send_message(formatted_message)
-            else:
-                notifier.send_message("No valid signals were generated.")
-        except Exception as e:
-            logging.error(f"Error in sending Telegram notifications: {e}")
-    else:
-        logging.warning("Telegram notification skipped: Missing TOKEN or CHAT_ID.")
-
+from stock_prep import StockPrep, StockFilter
+from stock_indicators import Indicator, StockScreener
+from stock_notifier import TelegramNotifier
+from config import CONSOLIDATED_OUTPUT_FILE, STOCK_POST_DIR
 
 def main():
-    logging.info("Pipeline started.")
+    # Print configuration paths for verification
+    print(f"Consolidated Output File: {CONSOLIDATED_OUTPUT_FILE}")
+    print(f"Processed Stock Data Directory: {STOCK_POST_DIR}")
 
-    # Step 1: Download stock data
-    download_stock_data()
+    # Step 1: Fetch stock data
+    fetcher = StockFetch()
+    failed_symbols = fetcher.download_stock_data()
 
-    # Step 2: Process the stock data for signals
-    strategies_dict = process_signals()
+    # Check if any symbols failed
+    if failed_symbols:
+        print(f"Failed to download data for: {failed_symbols}")
+    else:
+        print("All stock data downloaded successfully.")
 
-    # Step 3: Consolidate the signals
-    consolidate_signals(strategies_dict)
+    # Step 2: Preprocess stock data
+    prep = StockPrep()
+    preprocessed_files = prep.preprocess_all()
 
-    # Step 4: Send results via Telegram
-    #send_notifications(strategies_dict)
+    # Display preprocessed files
+    if preprocessed_files:
+        print("Preprocessed files:")
+        for file in preprocessed_files:
+            print(file)
+    else:
+        print("No files were preprocessed.")
 
-    logging.info("Pipeline complete. Consolidated signals saved.")
+    # Step 3: Screen for MACD signals
+    screener = StockScreener(stock_dir=STOCK_POST_DIR)
+    macd_signals = screener.screen_by_indicator(Indicator.calculate_macd)
 
+    # Save signals to the consolidated output file
+    screener.save_signals_to_file(macd_signals, output_file=CONSOLIDATED_OUTPUT_FILE)
+
+    # Display saved signals
+    print("MACD Signals saved to:", CONSOLIDATED_OUTPUT_FILE)
+
+    # Step 4: Filter stock signals
+    stock_filter = StockFilter(CONSOLIDATED_OUTPUT_FILE)
+    stock_filter.filter_and_sort_data()
+
+    # Load and display the filtered data
+    filtered_data = stock_filter.filtered_data
+    if filtered_data is not None and not filtered_data.empty:
+        print("Filtered Signals:")
+        print(filtered_data)  # Use print instead of `display` for non-Jupyter environments
+    else:
+        print("No signals found after filtering.")
+
+    # Step 5: Send signals via Telegram
+    if filtered_data is not None and not filtered_data.empty:
+        notifier = TelegramNotifier()
+        formatted_message = notifier.format_signals(filtered_data)
+
+        # Display the message to be sent
+        print("Message to be sent via Telegram:")
+        print(formatted_message)
+
+        # Send the message
+        notifier.send_message(formatted_message)
+    else:
+        print("No stock signals to send via Telegram.")
 
 if __name__ == "__main__":
     main()

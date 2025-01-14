@@ -1,31 +1,64 @@
 import os
 from datetime import datetime
+from dotenv import load_dotenv  # Import dotenv for environment variable handling
+
+# Load environment variables from a .env file
+load_dotenv()
 
 # Telegram Configuration
-# Create a .env file in the project root directory and add the following lines:
-#TELEGRAM_BOT_TOKEN=your_token_here
-#TELEGRAM_CHAT_ID=your_chat_id_here
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')  # Your Telegram Bot Token
+TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')      # Your Telegram Chat ID
 
-# Define project directories
+# Define the base directory of the project
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Define the main data directory
 DATA_DIR = os.path.join(BASE_DIR, 'data')
+
+# Define the logs directory for storing log files
 LOGS_DIR = os.path.join(BASE_DIR, 'logs')
 
-# Paths for stock data and symbols
-SYMBOLS_FILE = os.path.join(DATA_DIR, 'symbols', 'tv_tickers.csv')
-STOCK_DATA_DIR = os.path.join(DATA_DIR, 'stock_data')
-OUTPUT_DIR = os.path.join(DATA_DIR, 'txt_files')
-CONSOLIDATED_OUTPUT_FILE = os.path.join(DATA_DIR, 'consolidated_signals.csv')
+# Define the path to the symbols file (e.g., for stock symbols)
+SYMBOLS_FILE = os.path.join(DATA_DIR, 'symbols', 'symbols.csv')
 
-# Create log file with timestamp
+# Define the directory for processed stock data (post-processed data)
+STOCK_POST_DIR = os.path.join(DATA_DIR, 'processed_stock_data')
+
+# Define the directory for raw stock data (before processing)
+STOCK_PRE_DIR = os.path.join(DATA_DIR, 'raw_stock_data')
+
+# Define the directory for signals (consolidated output files)
+SIGNALS_DIR = os.path.join(DATA_DIR, 'signals')
+
+# Define the consolidated output file path for stock signals
+CONSOLIDATED_OUTPUT_FILE = os.path.join(SIGNALS_DIR, 'consolidated_signals.csv')
+
+# Define the log file path with a timestamp
 LOG_FILE = os.path.join(LOGS_DIR, f"download_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt")
 
-# Configurations for stock data download
-OUTPUT_DIR = 'output_data'
-LOG_FILE = 'log.txt'
-INTERVAL = '1d'
-PERIOD = '30d'
-BACKLOOK_DAYS = 3  # Number of days to look back for signals
+# Ensure each directory exists; create it if it doesn't
+directories = [DATA_DIR, LOGS_DIR, os.path.dirname(SYMBOLS_FILE), STOCK_POST_DIR, STOCK_PRE_DIR, SIGNALS_DIR]
+
+for directory in directories:
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+        print(f"Created directory: {directory}")
+
+# Output confirmation of key paths (optional for debugging)
+print(f"Base Directory: {BASE_DIR}")
+print(f"Data Directory: {DATA_DIR}")
+print(f"Logs Directory: {LOGS_DIR}")
+print(f"Symbols File: {SYMBOLS_FILE}")
+print(f"Processed Stock Data Directory: {STOCK_POST_DIR}")
+print(f"Raw Stock Data Directory: {STOCK_PRE_DIR}")
+print(f"Signals Directory: {SIGNALS_DIR}")
+print(f"Consolidated Output File: {CONSOLIDATED_OUTPUT_FILE}")
+print(f"Log File: {LOG_FILE}")
+
+
+# Stock data download configurations
+INTERVAL = '1d'          # Time interval for data ('1m','2m','5m','15m','30m','60m','90m','1h','1d','5d','1wk','1mo','3mo')
+PERIOD = '1y'           # Period for historical data ('1d','5d','1mo','3mo','6mo','1y','2y','5y','10y','ytd','max')
 
 # Configurations for indicators
 TEMA_CONFIG = {
@@ -42,7 +75,3 @@ RSI_CONFIG = {
     'period': 14,        # Period for RSI calculation
     'rsi_cutoff': 30     # RSI value below which a long signal is triggered
 }
-
-# Ensure logs directory exists
-if not os.path.exists(LOGS_DIR):
-    os.makedirs(LOGS_DIR)
