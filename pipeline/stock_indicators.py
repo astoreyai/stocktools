@@ -4,13 +4,33 @@ import talib
 import config  # Import only the config file, no other project modules
 
 
-class StockIndicators:
+class StockIndicator:
     """
     A class to encapsulate technical indicator calculations using configurations.
     """
+    all_indicators = []
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        StockIndicator.all_indicators.append(cls)
+        # magic: create `calculate_{indicator} property` - preserve `calculate_macd`, `calculate_rsi` when those classes are made.
+        setattr(StockIndicator, f'calculate_{cls.__name__.lower()}', cls.calculate)
+        cls.calculate.__name__ = cls.__name__
 
     @staticmethod
-    def calculate_macd(data):
+    def calculate(data, *args, **kwargs):
+        "Interface example method for subclasses of StockIndicator"
+        raise NotImplementedError
+
+StockIndicators = StockIndicator # TODO: deprecate plural name
+
+##
+## Classes for indicators
+##
+
+class MACD(StockIndicator):
+    @staticmethod
+    def calculate(data):
         """
         Calculate MACD and Signal Line from stock data, using MACD_CONFIG.
 
@@ -54,8 +74,9 @@ class StockIndicators:
         return data, last_cross_up #last_cross_down
 
 
+class RSI(StockIndicator):
     @staticmethod
-    def calculate_rsi(data, res='1D'):
+    def calculate(data, res='1D'):
         """
         Calculate Multi-Timeframe RSI with optional upper and lower line signals using TA-Lib.
 
@@ -90,6 +111,69 @@ class StockIndicators:
         #last_sell_signal = data.loc[data['Sell Signal'], 'Datetime'].max() if not data.loc[data['Sell Signal']].empty else None
 
         return data, last_buy_signal #last_sell_signal
+
+class TEMA(StockIndicator):
+    @staticmethod
+    def calculate(data):
+        """
+        Calculate TEMA from stock data and generate buy signals, using TEMA_CONFIG.
+
+        Parameters:
+            data (pd.DataFrame): DataFrame containing stock data with a 'Close' column.
+
+        Returns:
+            pd.DataFrame: DataFrame with TEMA and Buy Signal columns.
+            pd.Timestamp: Last Buy Signal Date (TEMA Cross Up).
+        """
+        #debug - TEMA_CONFIG examples
+        TEMA_CONFIG = {
+                "period": 14
+                }
+        from config import MACD_CONFIG
+
+        # Validate input
+        if 'Close' not in data.columns:
+            raise ValueError("The input data must contain a 'Close' column.")
+
+        if len(data) < max(TEMA_CONFIG['period'], MACD_CONFIG['slow_length']):
+            raise ValueError("Close prices array is too short for the given configuration.")
+
+        # Extract configuration parameters
+        tema_period = TEMA_CONFIG['period']
+        fast_length = MACD_CONFIG['fast_length']
+        slow_length = MACD_CONFIG['slow_length']
+        signal_length = MACD_CONFIG['signal_length']
+
+        # Calculate TEMA
+        ema1 = talib.EMA(data['Close'], timeperiod=tema_period)
+        ema2 = talib.EMA(ema1, timeperiod=tema_period)
+        ema3 = talib.EMA(ema2, timeperiod=tema_period)
+        data['TEMA'] = 3 * (ema1 - ema2) + ema3
+
+        # Calculate MACD
+        macd, macd_signal, _ = talib.MACD(data['Close'],
+                                          fastperiod=fast_length,
+                                          slowperiod=slow_length,
+                                          signalperiod=signal_length)
+
+        data['Buy Signal'] = (data['TEMA'] > data['TEMA'].shift(1)) & \
+                             (data['Close'] > data['TEMA'])
+
+        # Find the last buy signal date
+        last_buy_signal_date = data.loc[data['Buy Signal'], 'Datetime'].max() if not data.loc[data['Buy Signal']].empty else None
+
+        return data, last_buy_signal_date
+
+
+        # Generate buy and sell signals
+        #buy_signals = (macd > macd_signal) & (np.roll(macd, 1) <= np.roll(macd_signal, 1)) & (tema > np.roll(tema, 1))
+        #sell_signals = (macd < macd_signal) & (np.roll(macd, 1) >= np.roll(macd_signal, 1)) & (tema < np.roll(tema, 1))
+
+        #return {
+        #    "TEMA": tema,
+        #    "Buy Signals": buy_signals
+        #    #"Sell Signals": sell_signals
+        #}
 
 class StockScreener:
     """
