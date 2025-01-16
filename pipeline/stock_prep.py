@@ -82,44 +82,80 @@ class StockPrep:
                     preprocessed_files.append(processed_file)
         return preprocessed_files
 
+import os
+import pandas as pd
+from datetime import datetime, timedelta
+
 class StockFilter:
-    def __init__(self, file_path):
-        self.output_file = file_path
-        self.lookback_days = 3
+    """
+    A class to tally and combine stock signals within a lookback period.
+    """
+    def __init__(self, file_path, lookback_days=3):
+        self.file_path = file_path
+        self.lookback_days = lookback_days
         self.filtered_data = None
 
-    def filter_and_sort_data(self):
-        print("Executing filter_and_sort_data in StockFilter")
-        if not os.path.exists(self.output_file):
-            raise FileNotFoundError(f"The file '{self.output_file}' does not exist.")
-        
-        data = pd.read_csv(self.output_file, sep=",")  # Adjust delimiter if necessary
-        print("Columns in the dataset:", data.columns.tolist())
-        
-        # Ensure 'Last Signal Date' exists
-        if 'Last Signal Date' not in data.columns:
-            raise KeyError("'Last Signal Date' column is missing from the dataset.")
-        
-        data['Last Signal Date'] = pd.to_datetime(data['Last Signal Date'], errors='coerce')
-        data = data.dropna(subset=['Last Signal Date'])
+    def tally_signals(self):
+        """
+        Tally and combine stock signals within the lookback period, grouped by symbol and date.
+        """
+        if not os.path.exists(self.file_path):
+            raise FileNotFoundError(f"The file '{self.file_path}' does not exist.")
 
+        # Read data
+        data = pd.read_csv(self.file_path)
+
+        # Ensure column names are consistent (case-insensitive)
+        data.columns = [col.lower() for col in data.columns]
+
+        # Check for required columns
+        required_columns = {'datetime', 'symbol', 'signal type'}
+        if not required_columns.issubset(data.columns):
+            raise ValueError(f"The file must contain the following columns: {required_columns}")
+
+        # Convert 'datetime' column to datetime format
+        data['datetime'] = pd.to_datetime(data['datetime'], errors='coerce')
+
+        # Filter data within the lookback period
         cutoff_date = datetime.now() - timedelta(days=self.lookback_days)
-        print(f"Cutoff Date: {cutoff_date}")
+        recent_data = data[data['datetime'] >= cutoff_date]
 
-        filtered = data[data['Last Signal Date'] >= cutoff_date]
-        if filtered.empty:
-            print("No rows match the filtering criteria.")
-        else:
-            print("Filtered Rows:")
-            print(filtered)
+        if recent_data.empty:
+            print("No recent signals found.")
+            self.filtered_data = None
+            return
 
-        self.filtered_data = filtered.sort_values(by='Stock Symbol').reset_index(drop=True)
+        # Group data by symbol and datetime, combining signal types
+        recent_data = recent_data.copy()  # Ensure recent_data is a copy
+        recent_data['signal type'] = recent_data['signal type'].fillna('Unknown')
+        tally = (
+            recent_data.groupby(['symbol', 'datetime'])['signal type']
+            .apply(lambda x: ', '.join(set(x)))  # Combine unique signal types for each symbol-date
+            .reset_index(name='signals')
+        )
 
-    def save_filtered_data(self):
+        self.filtered_data = tally
+
+
+    def save_filtered_data(self, output_file):
+        """
+        Save the tallied data to a file in a structured format.
+        """
         if self.filtered_data is None:
-            raise ValueError("No filtered data to save. Run 'filter_and_sort_data' first.")
-        self.filtered_data.to_csv(self.output_file, sep=",", index=False)
-        print(f"Filtered data saved to {self.output_file}.")
+            raise ValueError("No filtered data to save. Run 'tally_signals' first.")
+
+        self.filtered_data.to_csv(output_file, index=False)
+        print(f"Filtered data saved to {output_file}.")
+
+    def display_filtered_data(self):
+        """
+        Display the tallied data for review.
+        """
+        if self.filtered_data is None:
+            raise ValueError("No filtered data to display. Run 'tally_signals' first.")
+
+        print(self.filtered_data)
+
 
 
 

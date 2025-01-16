@@ -1,0 +1,6 @@
+pandas
+TA-Lib
+asyncio
+python-telegram-bot
+yfinance
+python-dotenv

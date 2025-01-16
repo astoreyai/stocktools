@@ -1,11 +1,19 @@
 # Ignore Python virtual environment
 venv/
 .git/
-.env
+
+data/
+working/
+signals/
+signals_backup/
+logs/
+scripts/
+symbols/
+
 
 # Ignore CSV files
 *.csv
-*.txt
+.env
 
 # Ignore Python cache files
 __pycache__/

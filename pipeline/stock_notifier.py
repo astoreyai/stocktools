@@ -1,14 +1,11 @@
-from telegram.ext import ApplicationBuilder
+import os
 import asyncio
 import logging
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
+from telegram.ext import ApplicationBuilder
 
 class TelegramNotifier:
     def __init__(self, token=None, chat_id=None):
-        # Load token and chat ID
+        # Load token and chat ID from environment variables or arguments
         self.token = token or os.getenv("TELEGRAM_BOT_TOKEN")
         self.chat_id = chat_id or os.getenv("TELEGRAM_CHAT_ID")
 
@@ -52,6 +49,9 @@ class TelegramNotifier:
 
         # Iterate through the data and format each signal
         for _, row in data.iterrows():
-            message += f"🔹 `{row['Stock Symbol']}`: {row['Last Signal Date']}\n"
+            symbol = row.get('symbol', 'Unknown Symbol')  # Use lowercase column names
+            date = row.get('datetime', 'Unknown Date')
+            signals = row.get('signals', 'Unknown Signals')
+            message += f"🔹 `{symbol}`: {date} - *{signals}*\n"
 
         return message
